@@ -25,7 +25,7 @@ router.use("/availability", availabilityRoute);
 router.use("/contact", contactRoute);
 router.use("/services", servicesRoute);
 router.use("/staff", staffRoute);
-router.use("/customers", customerRoute);
+router.use("/customer", customerRoute);
 router.use("/booking", bookingRoute);
 router.use("/location", locationRoute);
 

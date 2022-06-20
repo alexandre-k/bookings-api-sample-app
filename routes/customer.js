@@ -16,7 +16,13 @@ const dateHelpers = require("../util/date-helpers");
 const express = require("express");
 const JSONBig = require("json-bigint");
 const router = express.Router();
-const { customersApi } = require("../util/square-client");
+const {
+  bookingsApi,
+  catalogApi,
+  checkoutApi,
+  customersApi,
+  teamApi,
+} = require("../util/square-client");
 const { v4: uuidv4 } = require("uuid");
 
 require("dotenv").config();
@@ -93,27 +99,68 @@ router.post("/search", async (req, res, next) => {
 /**
  * GET /customer/booking
  *
- * Get availability for the service variation & team member of the
- * existing booking so the user can reschedule the booking
+ * Get customer associated booking information, useful to get as a summary. Typically this summary should include information such as when, what, how much time, with who.
  */
 router.get("/booking", async (req, res, next) => {
-    console.log('BOOKING >')
-    try {
-        // const {
-        //     result: { availabilities },
-        // } = await bookingsApi.searchAvailability(req.body);
-        // res.send(JSONBig.parse(JSONBig.stringify({ availabilities })));
-        const email = req.query['email'];
-        if (email) {
-            const bookings = await Booking.findOne({ email });
-            return res.send(bookings);
-        } else {
-            throw('Requires an email query parameter found!');
-        }
-    } catch (error) {
-        console.error(error);
-        next(error);
+  try {
+    const email = req.query["email"];
+    if (email) {
+      const customerBooking = await Booking.findOne({ email });
+      const {
+        result: { booking },
+        ...httpResponse
+      } = await bookingsApi.retrieveBooking(customerBooking.bookingId);
+
+      const appointment = booking.appointmentSegments[0];
+      const retrieveCatalogObjectPromise = catalogApi.retrieveCatalogObject(
+        appointment.serviceVariationId,
+        true
+      );
+
+      // Send request to list staff booking profiles for the current location.
+      const retrieveTeamMemberPromise =
+        bookingsApi.retrieveTeamMemberBookingProfile(appointment.teamMemberId);
+
+      const retrievePaymentLinkPromise =
+        checkoutApi.retrievePaymentLink("SNWAT6DTDRDSBR2P");
+
+      // Wait until all API calls have completed.
+      const [
+        {
+          result: { relatedObjects },
+        },
+        {
+          result: { teamMemberBookingProfile },
+        },
+        {
+          result: { paymentLink },
+        },
+      ] = await Promise.all([
+        retrieveCatalogObjectPromise,
+        retrieveTeamMemberPromise,
+        retrievePaymentLinkPromise,
+      ]);
+
+      const relatedObject =
+        relatedObjects.length > 0 ? relatedObjects[0] : null;
+
+      res.send(
+        JSONBig.parse(
+          JSONBig.stringify({
+            booking,
+            teamMemberBookingProfile,
+            object: relatedObject,
+            paymentLink,
+          })
+        )
+      );
+    } else {
+      throw "Requires an email query parameter found!";
     }
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
 });
 
 /**
@@ -123,20 +170,20 @@ router.get("/booking", async (req, res, next) => {
  * existing booking so the user can reschedule the booking
  */
 router.post("/booking", async (req, res, next) => {
-    try {
-        const booking = new Booking({
-            email: req.body.email,
-            customerId: req.body.customerId,
-            orderId: req.body.orderId,
-            bookingId: req.body.bookingId,
-            status: req.body.status,
-        })
-        await booking.save();
-        return res.send(booking);
-    } catch (error) {
-        console.error(error);
-        next(error);
-    }
+  try {
+    const booking = new Booking({
+      email: req.body.email,
+      customerId: req.body.customerId,
+      orderId: req.body.orderId,
+      bookingId: req.body.bookingId,
+      status: req.body.status,
+    });
+    await booking.save();
+    return res.send(booking);
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
 });
 
 module.exports = router;

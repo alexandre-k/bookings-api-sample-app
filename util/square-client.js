@@ -20,7 +20,7 @@ const accessToken = process.env["SQUARE_ACCESS_TOKEN"];
 // Set Square credentials
 const config = {
   accessToken,
-  environment: env
+  environment: env,
 };
 
 // Extract instances of Api that are used
@@ -29,14 +29,16 @@ const {
   customersApi,
   bookingsApi,
   catalogApi,
+  checkoutApi,
   locationsApi,
-  teamApi
+  teamApi,
 } = new Client(config);
 
 module.exports = {
   bookingsApi,
   catalogApi,
+  checkoutApi,
   customersApi,
   locationsApi,
-  teamApi
+  teamApi,
 };
