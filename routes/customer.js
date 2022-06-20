@@ -118,8 +118,9 @@ router.get("/booking", async (req, res, next) => {
       );
 
       // Send request to list staff booking profiles for the current location.
-      const retrieveTeamMemberPromise =
-        bookingsApi.retrieveTeamMemberBookingProfile(appointment.teamMemberId);
+      const retrieveTeamMemberPromise = teamApi.retrieveTeamMember(
+        appointment.teamMemberId
+      );
 
       const retrievePaymentLinkPromise =
         checkoutApi.retrievePaymentLink("SNWAT6DTDRDSBR2P");
@@ -130,7 +131,7 @@ router.get("/booking", async (req, res, next) => {
           result: { relatedObjects },
         },
         {
-          result: { teamMemberBookingProfile },
+          result: { teamMember },
         },
         {
           result: { paymentLink },
@@ -148,7 +149,7 @@ router.get("/booking", async (req, res, next) => {
         JSONBig.parse(
           JSONBig.stringify({
             booking,
-            teamMemberBookingProfile,
+            teamMember,
             object: relatedObject,
             paymentLink,
           })

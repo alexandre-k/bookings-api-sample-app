@@ -49,14 +49,14 @@ router.post("/create", async (req, res, next) => {
   const familyName = req.body.booking.familyName;
   const givenName = req.body.booking.givenName;
 
-    try {
-  //   // Retrieve catalog object by the variation ID
-  //   const {
-  //     result: { object: catalogItemVariation },
-  //   } = await catalogApi.retrieveCatalogObject(serviceId);
-  //   const durationMinutes = convertMsToMins(
-  //     catalogItemVariation.itemVariationData.serviceDuration
-  //   );
+  try {
+    //   // Retrieve catalog object by the variation ID
+    //   const {
+    //     result: { object: catalogItemVariation },
+    //   } = await catalogApi.retrieveCatalogObject(serviceId);
+    //   const durationMinutes = convertMsToMins(
+    //     catalogItemVariation.itemVariationData.serviceDuration
+    //   );
 
     // Create booking
     const {
@@ -67,7 +67,7 @@ router.post("/create", async (req, res, next) => {
         customerId: await getCustomerID(givenName, familyName, emailAddress),
 
         // locationType: LocationType.BUSINESS_LOCATION,
-          // sellerNote,
+        // sellerNote,
         customerNote,
         locationId,
         startAt,
@@ -111,11 +111,11 @@ router.post("/:bookingId/reschedule", async (req, res, next) => {
 });
 
 /**
- * POST /booking/:bookingId/delete
+ * DELETE /booking/:bookingId
  *
  * delete a booking by booking ID
  */
-router.post("/:bookingId/delete", async (req, res, next) => {
+router.delete("/:bookingId", async (req, res, next) => {
   const bookingId = req.params.bookingId;
 
   try {
@@ -125,8 +125,7 @@ router.post("/:bookingId/delete", async (req, res, next) => {
     await bookingsApi.cancelBooking(bookingId, {
       bookingVersion: booking.version,
     });
-
-    res.redirect("/services?cancel=success");
+    res.send({ bookingId, deleted: true });
   } catch (error) {
     console.error(error);
     next(error);
