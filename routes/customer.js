@@ -178,6 +178,71 @@ router.get("/booking", async (req, res, next) => {
  */
 router.post("/booking", async (req, res, next) => {
   try {
+    const appointmentSegments = req.body.booking.appointmentSegments;
+    const startAt = req.body.booking.startAt;
+    const sellerNote = req.body.booking.sellerNote;
+    const customerNote = req.body.booking.customerNote;
+    const emailAddress = req.body.booking.emailAddress;
+    const customerId = req.body.booking.customerId;
+    const familyName = req.body.booking.familyName;
+    const givenName = req.body.booking.givenName;
+
+    //   // Retrieve catalog object by the variation ID
+    //   const {
+    //     result: { object: catalogItemVariation },
+    //   } = await catalogApi.retrieveCatalogObject(serviceId);
+    //   const durationMinutes = convertMsToMins(
+    //     catalogItemVariation.itemVariationData.serviceDuration
+    //   );
+
+    // Create booking
+    const {
+      result: { booking },
+    } = await bookingsApi.createBooking({
+      booking: {
+        appointmentSegments,
+        customerId: await getCustomerID(givenName, familyName, emailAddress),
+
+        // locationType: LocationType.BUSINESS_LOCATION,
+        // sellerNote,
+        customerNote,
+        locationId,
+        startAt,
+      },
+      idempotencyKey: uuidv4(),
+    });
+    const customerBooking = new Booking({
+      bookingId: booking.id,
+      customerId: customerId,
+      email: emailAddress,
+      orderId: null,
+      status: booking.status,
+    });
+    await customerBooking.save();
+
+    return res.send(JSONBig.parse(JSONBig.stringify({ booking })));
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+});
+
+/**
+ * POST /booking/create
+ *
+ * Create a new booking, booking details and customer information is submitted
+ * by form data. Create a new customer if necessary, otherwise use an existing
+ * customer that matches the `firstName`, `lastName` and `emailAddress`
+ * to create the booking.
+ *
+ * accepted query params are:
+ * `serviceId` - the ID of the service
+ * `staffId` - the ID of the staff
+ * `startAt` - starting time of the booking
+ * `serviceVariationVersion` - the version of the service initially selected
+ */
+router.post("/create", async (req, res, next) => {
+  try {
     const booking = new Booking({
       email: req.body.email,
       customerId: req.body.customerId,
