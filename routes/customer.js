@@ -99,13 +99,20 @@ router.post("/search", async (req, res, next) => {
 /**
  * GET /customer/booking
  *
- * Get customer associated booking information, useful to get as a summary. Typically this summary should include information such as when, what, how much time, with who.
+ * Get customer associated booking information, useful to get as a summary.
+ * Typically this summary should include information such as when, what, how
+ * much time, with who.
  */
+
 router.get("/booking", async (req, res, next) => {
   try {
     const email = req.query["email"];
     if (email) {
-      const customerBooking = await Booking.findOne({ email });
+      const customerBooking = await Booking.findOne({
+        email,
+        status: "ACCEPTED",
+      });
+      if (customerBooking === null) return res.send(null);
       const {
         result: { booking },
         ...httpResponse
@@ -167,8 +174,7 @@ router.get("/booking", async (req, res, next) => {
 /**
  * POST /customer/booking
  *
- * Get availability for the service variation & team member of the
- * existing booking so the user can reschedule the booking
+ * Create a new booking object and return it once created
  */
 router.post("/booking", async (req, res, next) => {
   try {
@@ -181,6 +187,34 @@ router.post("/booking", async (req, res, next) => {
     });
     await booking.save();
     return res.send(booking);
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+});
+
+/**
+ * DELETE /customer/booking/:bookingId
+ *
+ * delete a booking by booking ID
+ */
+router.delete("/booking/:bookingId", async (req, res, next) => {
+  const bookingId = req.params.bookingId;
+
+  try {
+    const {
+      result: { booking },
+    } = await bookingsApi.retrieveBooking(bookingId);
+    await bookingsApi.cancelBooking(bookingId, {
+      bookingVersion: booking.version,
+    });
+    const filter = { bookingId };
+    const update = { status: "CANCELLED_BY_CUSTOMER" };
+    await Booking.findOneAndUpdate(filter, update, {
+      returnOriginal: false,
+    });
+
+    res.send({ bookingId, cancelled: true });
   } catch (error) {
     console.error(error);
     next(error);

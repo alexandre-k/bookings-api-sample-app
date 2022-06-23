@@ -11,6 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+const Booking = require("../models/Booking");
 const dateHelpers = require("../util/date-helpers");
 const express = require("express");
 const JSONBig = require("json-bigint");
@@ -104,28 +105,6 @@ router.post("/:bookingId/reschedule", async (req, res, next) => {
     } = await bookingsApi.updateBooking(bookingId, { booking: updateBooking });
 
     res.redirect("/booking/" + newBooking.id);
-  } catch (error) {
-    console.error(error);
-    next(error);
-  }
-});
-
-/**
- * DELETE /booking/:bookingId
- *
- * delete a booking by booking ID
- */
-router.delete("/:bookingId", async (req, res, next) => {
-  const bookingId = req.params.bookingId;
-
-  try {
-    const {
-      result: { booking },
-    } = await bookingsApi.retrieveBooking(bookingId);
-    await bookingsApi.cancelBooking(bookingId, {
-      bookingVersion: booking.version,
-    });
-    res.send({ bookingId, deleted: true });
   } catch (error) {
     console.error(error);
     next(error);
@@ -311,6 +290,28 @@ router.post("/availability/search", async (req, res, next) => {
       result: { availabilities },
     } = await bookingsApi.searchAvailability(req.body);
     res.send(JSONBig.parse(JSONBig.stringify({ availabilities })));
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+});
+
+/**
+ * PUT /booking/:bookingId/reschedule
+ *
+ * Update an existing booking, you may update the starting date
+ */
+router.put("/:bookingId", async (req, res, next) => {
+  const updateBooking = req.body.booking;
+  const bookingId = req.params.bookingId;
+  try {
+    const {
+      result: { booking: newBooking },
+    } = await bookingsApi.updateBooking(bookingId, {
+      booking: updateBooking,
+    });
+
+    res.send(JSONBig.parse(JSONBig.stringify({ newBooking })));
   } catch (error) {
     console.error(error);
     next(error);
