@@ -118,16 +118,22 @@ router.get("/booking", async (req, res, next) => {
         ...httpResponse
       } = await bookingsApi.retrieveBooking(customerBooking.bookingId);
 
-      const appointment = booking.appointmentSegments[0];
-      const retrieveCatalogObjectPromise = catalogApi.retrieveCatalogObject(
-        appointment.serviceVariationId,
-        true
+      const objectIds = booking.appointmentSegments.map(
+        (appointment) => appointment.serviceVariationId
       );
+      const teamMemberIds = booking.appointmentSegments.map(
+        (appointment) => appointment.teamMemberId
+      );
+      const teamMemberId = teamMemberIds.length > 0 ? teamMemberIds[0] : null;
+      const batchRetrieveCatalogObjectsPromise =
+        catalogApi.batchRetrieveCatalogObjects({
+          objectIds,
+          includeRelatedObjects: true,
+        });
 
       // Send request to list staff booking profiles for the current location.
-      const retrieveTeamMemberPromise = teamApi.retrieveTeamMember(
-        appointment.teamMemberId
-      );
+      const retrieveTeamMemberPromise =
+        teamApi.retrieveTeamMember(teamMemberId);
 
       const retrievePaymentLinkPromise =
         checkoutApi.retrievePaymentLink("SNWAT6DTDRDSBR2P");
@@ -135,7 +141,7 @@ router.get("/booking", async (req, res, next) => {
       // Wait until all API calls have completed.
       const [
         {
-          result: { relatedObjects },
+          result: { objects, relatedObjects },
         },
         {
           result: { teamMember },
@@ -144,20 +150,18 @@ router.get("/booking", async (req, res, next) => {
           result: { paymentLink },
         },
       ] = await Promise.all([
-        retrieveCatalogObjectPromise,
+        batchRetrieveCatalogObjectsPromise,
         retrieveTeamMemberPromise,
         retrievePaymentLinkPromise,
       ]);
-
-      const relatedObject =
-        relatedObjects.length > 0 ? relatedObjects[0] : null;
 
       res.send(
         JSONBig.parse(
           JSONBig.stringify({
             booking,
             teamMember,
-            object: relatedObject,
+            objects,
+            relatedObjects,
             paymentLink,
           })
         )
