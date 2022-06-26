@@ -108,67 +108,102 @@ router.get("/booking", async (req, res, next) => {
   try {
     const email = req.query["email"];
     if (email) {
-      const customerBooking = await Booking.findOne({
+      const customerBookings = await Booking.find({
         email,
         status: "ACCEPTED",
       });
-      if (customerBooking === null) return res.send(null);
-      const {
-        result: { booking },
-        ...httpResponse
-      } = await bookingsApi.retrieveBooking(customerBooking.bookingId);
-
-      const objectIds = booking.appointmentSegments.map(
-        (appointment) => appointment.serviceVariationId
+      if (customerBookings === null) return res.send(null);
+      const retrieveBookings = customerBookings.map((booking) =>
+        bookingsApi.retrieveBooking(booking.bookingId)
       );
-      const teamMemberIds = booking.appointmentSegments.map(
-        (appointment) => appointment.teamMemberId
-      );
-      const teamMemberId = teamMemberIds.length > 0 ? teamMemberIds[0] : null;
-      const batchRetrieveCatalogObjectsPromise =
-        catalogApi.batchRetrieveCatalogObjects({
-          objectIds,
-          includeRelatedObjects: true,
-        });
-
-      // Send request to list staff booking profiles for the current location.
-      const retrieveTeamMemberPromise =
-        teamApi.retrieveTeamMember(teamMemberId);
-
-      const retrievePaymentLinkPromise =
-        checkoutApi.retrievePaymentLink("SNWAT6DTDRDSBR2P");
 
       // Wait until all API calls have completed.
-      const [
-        {
-          result: { objects, relatedObjects },
-        },
-        {
-          result: { teamMember },
-        },
-        {
-          result: { paymentLink },
-        },
-      ] = await Promise.all([
-        batchRetrieveCatalogObjectsPromise,
-        retrieveTeamMemberPromise,
-        retrievePaymentLinkPromise,
-      ]);
+      const result = await Promise.all(retrieveBookings);
 
       res.send(
         JSONBig.parse(
           JSONBig.stringify({
-            booking,
-            teamMember,
-            objects,
-            relatedObjects,
-            paymentLink,
+            result,
           })
         )
       );
     } else {
       throw "Requires an email query parameter found!";
     }
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+});
+
+/**
+ * GET /customer/booking/:bookingId
+ *
+ * Get customer associated booking information, useful to get as a summary.
+ * Typically this summary should include information such as when, what, how
+ * much time, with who.
+ */
+
+router.get("/booking/:bookingId", async (req, res, next) => {
+  try {
+    const bookingId = req.params["bookingId"];
+    const customerBooking = await Booking.findOne({
+      bookingId,
+      status: "ACCEPTED",
+    });
+    if (customerBooking === null) return res.send(null);
+    const {
+      result: { booking },
+      ...httpResponse
+    } = await bookingsApi.retrieveBooking(customerBooking.bookingId);
+
+    const objectIds = booking.appointmentSegments.map(
+      (appointment) => appointment.serviceVariationId
+    );
+    const teamMemberIds = booking.appointmentSegments.map(
+      (appointment) => appointment.teamMemberId
+    );
+    const teamMemberId = teamMemberIds.length > 0 ? teamMemberIds[0] : null;
+    const batchRetrieveCatalogObjectsPromise =
+      catalogApi.batchRetrieveCatalogObjects({
+        objectIds,
+        includeRelatedObjects: true,
+      });
+
+    // Send request to list staff booking profiles for the current location.
+    const retrieveTeamMemberPromise = teamApi.retrieveTeamMember(teamMemberId);
+
+    const retrievePaymentLinkPromise =
+      checkoutApi.retrievePaymentLink("SNWAT6DTDRDSBR2P");
+
+    // Wait until all API calls have completed.
+    const [
+      {
+        result: { objects, relatedObjects },
+      },
+      {
+        result: { teamMember },
+      },
+      {
+        result: { paymentLink },
+      },
+    ] = await Promise.all([
+      batchRetrieveCatalogObjectsPromise,
+      retrieveTeamMemberPromise,
+      retrievePaymentLinkPromise,
+    ]);
+
+    res.send(
+      JSONBig.parse(
+        JSONBig.stringify({
+          booking,
+          teamMember,
+          objects,
+          relatedObjects,
+          paymentLink,
+        })
+      )
+    );
   } catch (error) {
     console.error(error);
     next(error);
