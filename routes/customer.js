@@ -118,13 +118,16 @@ router.get("/booking", async (req, res, next) => {
       );
 
       // Wait until all API calls have completed.
-      const result = await Promise.all(retrieveBookings);
+      const bookings = await Promise.all(retrieveBookings);
+      const parsedBookings = bookings.map((res) => {
+        return res.result.booking;
+      });
 
       res.send(
         JSONBig.parse(
-          JSONBig.stringify({
-            result,
-          })
+          JSONBig.stringify(
+            parsedBookings
+          )
         )
       );
     } else {
