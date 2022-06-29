@@ -16,6 +16,7 @@ limitations under the License.
 const express = require("express");
 const mongoose = require("mongoose");
 const logger = require("morgan");
+const rateLimit = require("express-rate-limit");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
@@ -26,9 +27,9 @@ DB_PORT = process.env["DB_PORT"];
 DB_NAME = process.env["DB_NAME"];
 
 mongoose
-    .connect(`mongodb://${DB_HOST}:${DB_PORT}/`, {
+  .connect(`mongodb://${DB_HOST}:${DB_PORT}/`, {
     user: DB_USER,
-    pass: DB_PASSWORD
+    pass: DB_PASSWORD,
   })
   .then(() => {
     console.log("Connected to MongoDB.");
@@ -79,6 +80,15 @@ app.use(
     extended: false,
   })
 );
+
+const limiter = rateLimit({
+  legacyHeaders: false,
+  max: 60,
+  standardHeaders: true,
+  windowMs: 60 * 1000,
+});
+
+app.use(limiter);
 
 app.use(cookieParser());
 app.use("/", routes);
