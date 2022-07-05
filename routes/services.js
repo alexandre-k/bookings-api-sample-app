@@ -13,7 +13,7 @@ limitations under the License.
 
 const express = require("express");
 const router = express.Router();
-const JSONBig = require('json-bigint');
+const JSONBig = require("json-bigint");
 require("dotenv").config();
 
 const locationId = process.env["SQUARE_LOCATION_ID"];

@@ -20,6 +20,7 @@ const contactRoute = require("./contact");
 const servicesRoute = require("./services");
 const staffRoute = require("./staff");
 const locationRoute = require("./location");
+const eventRoute = require("./events");
 
 router.use("/availability", availabilityRoute);
 router.use("/contact", contactRoute);
@@ -28,6 +29,7 @@ router.use("/staff", staffRoute);
 router.use("/customer", customerRoute);
 router.use("/booking", bookingRoute);
 router.use("/location", locationRoute);
+router.use("/events", eventRoute);
 
 /**
  * GET /
