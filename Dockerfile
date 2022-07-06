@@ -11,8 +11,9 @@ COPY --chown=node:node . .
 
 ENV PATH /backend/node_modules/.bin:$PATH
 
-RUN chown -R node:node /usr/src/app/node_modules
+RUN chown -R node:node node_modules
 USER node
 
 # start app
-CMD ["yarn", "start"]
+RUN chmod +x entrypoint.sh
+ENTRYPOINT "/usr/src/app/entrypoint.sh"
