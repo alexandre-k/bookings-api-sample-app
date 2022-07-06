@@ -28,7 +28,7 @@ const { v4: uuidv4 } = require("uuid");
 
 require("dotenv").config();
 const locationId = process.env["SQUARE_LOCATION_ID"];
-const magicLinkPrivateKey = process.env["UNBOXED_MAGIC_LINK_SECRET_KEY"];
+const magicLinkPrivateKey = process.env["MAGIC_LINK_SECRET_KEY"];
 const mAdmin = new Magic(magicLinkPrivateKey);
 
 /**
@@ -152,11 +152,16 @@ router.get("/booking", async (req, res, next) => {
 
 router.get("/booking/:bookingId", async (req, res, next) => {
   try {
+    const DIDToken = req.headers.authorization.substring(7);
+    const metadata = await mAdmin.users.getMetadataByToken(DIDToken);
+    mAdmin.token.validate(DIDToken);
     const bookingId = req.params["bookingId"];
     const customerBooking = await Booking.findOne({
       bookingId,
       status: "ACCEPTED",
     });
+    if (customerBooking.email !== metadata.email)
+      return res.status(404).send("user doesn't match");
     if (customerBooking === null) return res.send(null);
     const {
       result: { booking },

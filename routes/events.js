@@ -28,7 +28,7 @@ const isFromSquare = (
  */
 router.post("", async (req, res, next) => {
   try {
-    const signatureKey = process.env["UNBOXED_SQUARE_SIGNATURE_KEY"];
+    const signatureKey = process.env["SQUARE_SIGNATURE_KEY"];
     const squareSignature = req.headers["x-square-signature"];
     const host = req.headers["host"];
     const notificationUrl = "https://" + host + req.baseUrl;
