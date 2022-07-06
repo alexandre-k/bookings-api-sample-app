@@ -15,6 +15,7 @@ const Booking = require("../models/Booking");
 const dateHelpers = require("../util/date-helpers");
 const express = require("express");
 const JSONBig = require("json-bigint");
+const { Magic } = require("@magic-sdk/admin");
 const router = express.Router();
 const {
   bookingsApi,
@@ -27,6 +28,8 @@ const { v4: uuidv4 } = require("uuid");
 
 require("dotenv").config();
 const locationId = process.env["SQUARE_LOCATION_ID"];
+const magicLinkPrivateKey = process.env["UNBOXED_MAGIC_LINK_SECRET_KEY"];
+const mAdmin = new Magic(magicLinkPrivateKey);
 
 /**
  * Convert a duration in milliseconds to minutes
@@ -107,6 +110,12 @@ router.post("/search", async (req, res, next) => {
 router.get("/booking", async (req, res, next) => {
   try {
     const email = req.query["email"];
+    console.log("Headers -> ", req.headers);
+    const DIDToken = req.headers.authorization.substring(7);
+    const [proof, claim] = mAdmin.token.getIssuer(DIDToken);
+    console.log("Proof -> ", proof);
+    console.log("Claim -> ", claim);
+    mAdmin.token.validate(DIDToken);
     if (email) {
       const customerBookings = await Booking.find({
         email,
@@ -123,13 +132,7 @@ router.get("/booking", async (req, res, next) => {
         return res.result.booking;
       });
 
-      res.send(
-        JSONBig.parse(
-          JSONBig.stringify(
-            parsedBookings
-          )
-        )
-      );
+      res.send(JSONBig.parse(JSONBig.stringify(parsedBookings)));
     } else {
       throw "Requires an email query parameter found!";
     }
