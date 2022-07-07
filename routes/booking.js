@@ -296,26 +296,4 @@ router.post("/availability/search", async (req, res, next) => {
   }
 });
 
-/**
- * PUT /booking/:bookingId/reschedule
- *
- * Update an existing booking, you may update the starting date
- */
-router.put("/:bookingId", async (req, res, next) => {
-  const updateBooking = req.body.booking;
-  const bookingId = req.params.bookingId;
-  try {
-    const {
-      result: { booking: newBooking },
-    } = await bookingsApi.updateBooking(bookingId, {
-      booking: updateBooking,
-    });
-
-    res.send(JSONBig.parse(JSONBig.stringify({ newBooking })));
-  } catch (error) {
-    console.error(error);
-    next(error);
-  }
-});
-
 module.exports = router;

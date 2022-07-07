@@ -31,6 +31,17 @@ const locationId = process.env["SQUARE_LOCATION_ID"];
 const magicLinkPrivateKey = process.env["MAGIC_LINK_SECRET_KEY"];
 const mAdmin = new Magic(magicLinkPrivateKey);
 
+const validateUser = async (DIDToken) => {
+  try {
+    const metadata = await mAdmin.users.getMetadataByToken(DIDToken);
+    mAdmin.token.validate(DIDToken);
+    return { metadata, error: null };
+  } catch (error) {
+    console.error(error);
+    return { metadata: null, error };
+  }
+};
+
 /**
  * Convert a duration in milliseconds to minutes
  *
@@ -109,33 +120,33 @@ router.post("/search", async (req, res, next) => {
 
 router.get("/booking", async (req, res, next) => {
   try {
+    const { metadata, error } = await validateUser(
+      req.headers.authorization.substring(7)
+    );
+    if (error) return res.status(404).send("Unable to validate token: ", error);
+
     const email = req.query["email"];
-    console.log("Headers -> ", req.headers);
-    const DIDToken = req.headers.authorization.substring(7);
-    const [proof, claim] = mAdmin.token.getIssuer(DIDToken);
-    console.log("Proof -> ", proof);
-    console.log("Claim -> ", claim);
-    mAdmin.token.validate(DIDToken);
-    if (email) {
-      const customerBookings = await Booking.find({
-        email,
-        status: "ACCEPTED",
-      });
-      if (customerBookings === null) return res.send(null);
-      const retrieveBookings = customerBookings.map((booking) =>
-        bookingsApi.retrieveBooking(booking.bookingId)
-      );
-
-      // Wait until all API calls have completed.
-      const bookings = await Promise.all(retrieveBookings);
-      const parsedBookings = bookings.map((res) => {
-        return res.result.booking;
-      });
-
-      res.send(JSONBig.parse(JSONBig.stringify(parsedBookings)));
-    } else {
-      throw "Requires an email query parameter found!";
+    if (!email) {
+      return res.status(404).send("No email parameter found.");
     }
+    if (email !== metadata.email)
+      return res.status(404).send("user doesn't match");
+    const customerBookings = await Booking.find({
+      email,
+      status: "ACCEPTED",
+    });
+    if (customerBookings === null) return res.status(200).json([]);
+    const retrieveBookings = customerBookings.map((booking) =>
+      bookingsApi.retrieveBooking(booking.bookingId)
+    );
+
+    // Wait until all API calls have completed.
+    const bookings = await Promise.all(retrieveBookings);
+    const parsedBookings = bookings.map((res) => {
+      return res.result.booking;
+    });
+
+    res.send(JSONBig.parse(JSONBig.stringify(parsedBookings)));
   } catch (error) {
     console.error(error);
     next(error);
@@ -152,9 +163,10 @@ router.get("/booking", async (req, res, next) => {
 
 router.get("/booking/:bookingId", async (req, res, next) => {
   try {
-    const DIDToken = req.headers.authorization.substring(7);
-    const metadata = await mAdmin.users.getMetadataByToken(DIDToken);
-    mAdmin.token.validate(DIDToken);
+    const { metadata, error } = await validateUser(
+      req.headers.authorization.substring(7)
+    );
+    if (error) return res.status(404).send("Unable to validate token: ", error);
     const bookingId = req.params["bookingId"];
     const customerBooking = await Booking.findOne({
       bookingId,
@@ -309,14 +321,60 @@ router.post("/create", async (req, res, next) => {
 });
 
 /**
+ * PUT /customer/booking/:bookingId
+ *
+ * Update an existing booking, you may update the starting date
+ */
+router.put("/booking/:bookingId", async (req, res, next) => {
+    try {
+        const updateBooking = req.body.booking;
+        const bookingId = req.params.bookingId;
+        const { metadata, error } = await validateUser(
+            req.headers.authorization.substring(7)
+        );
+        if (error) return res.status(404).send("Unable to validate token: ", error);
+
+        const customerBooking = await Booking.findOne({
+            bookingId,
+            status: "ACCEPTED",
+        });
+        if (customerBooking.email !== metadata.email)
+            return res.status(404).send("user doesn't match");
+
+        const {
+            result: { booking: newBooking },
+        } = await bookingsApi.updateBooking(bookingId, {
+            booking: updateBooking,
+        });
+
+        res.send(JSONBig.parse(JSONBig.stringify({ newBooking })));
+    } catch (error) {
+        console.error(error);
+        next(error);
+    }
+});
+
+
+/**
  * DELETE /customer/booking/:bookingId
  *
  * delete a booking by booking ID
  */
 router.delete("/booking/:bookingId", async (req, res, next) => {
-  const bookingId = req.params.bookingId;
-
   try {
+    const { metadata, error } = await validateUser(
+      req.headers.authorization.substring(7)
+    );
+    if (error) return res.status(404).send("Unable to validate token: ", error);
+
+    const bookingId = req.params.bookingId;
+    const customerBooking = await Booking.findOne({
+      bookingId,
+      status: "ACCEPTED",
+    });
+    if (customerBooking.email !== metadata.email)
+      return res.status(404).send("user doesn't match");
+
     const {
       result: { booking },
     } = await bookingsApi.retrieveBooking(bookingId);
