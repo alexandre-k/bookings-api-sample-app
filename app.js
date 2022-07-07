@@ -200,6 +200,7 @@ const http = require("http");
  */
 
 const port = normalizePort(process.env.PORT || "3000");
+app.set("base", "/api");
 app.set("port", port);
 
 /**
