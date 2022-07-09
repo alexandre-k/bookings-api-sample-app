@@ -20,11 +20,37 @@ const rateLimit = require("express-rate-limit");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
-DB_USER = process.env["DB_USER"];
-DB_PASSWORD = process.env["DB_PASSWORD"];
-DB_HOST = process.env["DB_HOST"];
-DB_PORT = process.env["DB_PORT"];
-DB_NAME = process.env["DB_NAME"];
+// Check that all required .env variables exist
+const requiredEnvVariables = [
+  "SERVER_PORT",
+  "MAGIC_LINK_SECRET_KEY",
+  "SQUARE_SIGNATURE_KEY",
+  "SQUARE_ENVIRONMENT",
+  "SQUARE_ACCESS_TOKEN",
+  "SQUARE_LOCATION_ID",
+  "SQUARE_API_VERSION",
+  "MONGODB_USER",
+  "MONGODB_PASSWORD",
+  "MONGODB_HOST",
+  "MONGODB_PORT",
+  "MONGODB_DATABASE",
+];
+
+const envCheck = requiredEnvVariables.map((variable) => {
+  if (variable in process.env) {
+    return true;
+  }
+  console.error(".env file missing required field: ", variable);
+  return false;
+});
+
+if (envCheck.includes(false)) process.exit(1);
+
+DB_USER = process.env["MONGODB_USER"];
+DB_PASSWORD = process.env["MONGODB_PASSWORD"];
+DB_HOST = process.env["MONGODB_HOST"];
+DB_PORT = process.env["MONGODB_PORT"];
+DB_NAME = process.env["MONGODB_DATABASE"];
 
 mongoose
   .connect(`mongodb://${DB_HOST}:${DB_PORT}/`, {
@@ -36,18 +62,6 @@ mongoose
   })
   .catch((err) => console.log("Error while connecting to MongoDB ", err));
 const app = express();
-
-// Check that all required .env variables exist
-if (!process.env["ENVIRONMENT"]) {
-  console.error('.env file missing required field "environment".');
-  process.exit(1);
-} else if (!process.env["SQUARE_ACCESS_TOKEN"]) {
-  console.error('.env file missing required field "SQUARE_ACCESS_TOKEN".');
-  process.exit(1);
-} else if (!process.env["SQUARE_LOCATION_ID"]) {
-  console.error('.env file missing required field "SQUARE_LOCATION_ID".');
-  process.exit(1);
-}
 
 const routes = require("./routes/index");
 const { locationsApi } = require("./util/square-client");
@@ -199,7 +213,7 @@ const http = require("http");
  * Get port from environment and store in Express.
  */
 
-const port = normalizePort(process.env.PORT || "3000");
+const port = normalizePort(process.env.SERVER_PORT || "3000");
 app.set("base", "/api");
 app.set("port", port);
 

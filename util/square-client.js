@@ -14,7 +14,7 @@ limitations under the License.
 const { Client } = require("square");
 require("dotenv").config();
 
-const env = process.env["ENVIRONMENT"].toLowerCase();
+const env = process.env["SQUARE_ENVIRONMENT"].toLowerCase();
 const accessToken = process.env["SQUARE_ACCESS_TOKEN"];
 
 // Set Square credentials

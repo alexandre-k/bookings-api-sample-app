@@ -9,8 +9,6 @@ RUN yarn global add nodemon
 
 COPY --chown=node:node . .
 
-ENV PATH /backend/node_modules/.bin:$PATH
-
 RUN chown -R node:node node_modules
 USER node
 
