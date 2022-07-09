@@ -105,7 +105,7 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.use(cookieParser());
-app.use("/", routes);
+app.use("/api", routes);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
@@ -214,7 +214,6 @@ const http = require("http");
  */
 
 const port = normalizePort(process.env.SERVER_PORT || "3000");
-app.set("base", "/api");
 app.set("port", port);
 
 /**
