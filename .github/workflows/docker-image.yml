@@ -20,23 +20,9 @@ jobs:
       - name: Test env
         run: |
           echo Location Id:
-          echo '${{ secrets.REACT_APP_LOCATION_ID }}'
-      - name: Build Docker containers
+          echo '${{ secrets.SQUARE_LOCATION_ID }}'
+      - name: Build Docker container
         run: |
-          echo --- Building docker containers ---
-          cd frontend
-          touch .env.production
-          echo REACT_APP_LOCATION_ID='${{ secrets.REACT_APP_LOCATION_ID }}' > .env.production
-          echo REACT_APP_PUBLISHABLE_API_KEY='${{ secrets.REACT_APP_PUBLISHABLE_API_KEY }}' >> .env.production
-          ls -la
-          cat .env.production
-          docker build -t kmalexandre/square-booking-app:latest -f ./docker/Dockerfile.production .
-          docker push kmalexandre/square-booking-app:latest
-          echo --- Containers up ---
-
-      # - name: JEST Report
-      #   uses: RedaktionsNetzwerk-Deutschland/action-jest-reporter@v1.0.0
- 
-      # - name: Run tests
-      #   run: |
-      #     docker compose run frontend test
+          echo --- Building docker container 
+          docker build -t kmalexandre/square-booking-api:latest -f ./docker/Dockerfile.production .
+          docker push kmalexandre/square-booking-api:latest
