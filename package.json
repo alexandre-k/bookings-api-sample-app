@@ -5,9 +5,9 @@
   "main": "app.js",
   "private": true,
   "scripts": {
-    "seed": "node ./bin/script/seed-data.js generate",
-    "clear": "node ./bin/script/seed-data.js clear",
-    "start": "nodemon -e js ./bin/www"
+    "seed": "node ./src/bin/script/seed-data.js generate",
+    "clear": "node ./src/bin/script/seed-data.js clear",
+    "start": "nodemon -e js ./src/bin/www"
   },
   "author": "barakj, emmac, azlee",
   "license": "Apache-2.0",
