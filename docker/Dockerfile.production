@@ -4,7 +4,8 @@ WORKDIR /usr/src/app
 
 # install app dependencies
 COPY package*.json ./
-RUN npm ci --only=production
-RUN npm install --global nodemon
+COPY yarn.lock ./
+RUN yarn install --immutable --immutable-cache --check-cache
+RUN yarn global add nodemon
 
-CMD ["npm run start"]
+CMD ["yarn start"]
