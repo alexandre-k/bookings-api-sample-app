@@ -1,0 +1,10 @@
+FROM node:16-alpine
+
+WORKDIR /usr/src/app
+
+# install app dependencies
+COPY package*.json ./
+RUN npm ci --only=production
+RUN npm install --global nodemon
+
+CMD ["npm run start"]
