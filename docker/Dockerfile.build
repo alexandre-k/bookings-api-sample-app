@@ -10,5 +10,4 @@ RUN yarn install --immutable --immutable-cache --check-cache
 RUN yarn global add nodemon
 
 # start app
-RUN chmod +x entrypoint.sh
-ENTRYPOINT "/usr/src/app/entrypoint.sh"
+CMD ["yarn", "start"]
