@@ -1,0 +1,42 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: square-booking-app
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          submodules: "true"
+      - name: Login to Docker hub registry
+        run: echo ${{ secrets.DOCKER_HUB_PASSWORD }} | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
+      - name: Test env
+        run: |
+          echo Location Id:
+          echo '${{ secrets.REACT_APP_LOCATION_ID }}'
+      - name: Build Docker containers
+        run: |
+          echo --- Building docker containers ---
+          cd frontend
+          touch .env.production
+          echo REACT_APP_LOCATION_ID='${{ secrets.REACT_APP_LOCATION_ID }}' > .env.production
+          echo REACT_APP_PUBLISHABLE_API_KEY='${{ secrets.REACT_APP_PUBLISHABLE_API_KEY }}' >> .env.production
+          ls -la
+          cat .env.production
+          docker build -t kmalexandre/square-booking-app:latest -f ./docker/Dockerfile.production .
+          docker push kmalexandre/square-booking-app:latest
+          echo --- Containers up ---
+
+      # - name: JEST Report
+      #   uses: RedaktionsNetzwerk-Deutschland/action-jest-reporter@v1.0.0
+ 
+      # - name: Run tests
+      #   run: |
+      #     docker compose run frontend test
