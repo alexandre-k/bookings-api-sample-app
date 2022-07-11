@@ -5,8 +5,8 @@ WORKDIR /usr/src/app
 # install app dependencies
 COPY package*.json ./
 COPY yarn.lock ./
-COPY src ./
+COPY . .
 RUN yarn install --immutable --immutable-cache --check-cache
 RUN yarn global add nodemon
 
-CMD ["yarn start"]
+CMD ["yarn", "start"]
