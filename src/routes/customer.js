@@ -166,15 +166,16 @@ router.get("/booking/:bookingId", async (req, res, next) => {
     const { metadata, error } = await validateUser(
       req.headers.authorization.substring(7)
     );
-    if (error) return res.status(404).send("Unable to validate token: ", error);
+    if (error) return res.status(401).send("Unable to validate token: ", error);
     const bookingId = req.params["bookingId"];
     const customerBooking = await Booking.findOne({
       bookingId,
       status: "ACCEPTED",
     });
+    if (customerBooking === null)
+      return res.status(410).send("Invalid or canceled.");
     if (customerBooking.email !== metadata.email)
       return res.status(404).send("user doesn't match");
-    if (customerBooking === null) return res.send(null);
     const {
       result: { booking },
       ...httpResponse
@@ -326,34 +327,33 @@ router.post("/create", async (req, res, next) => {
  * Update an existing booking, you may update the starting date
  */
 router.put("/booking/:bookingId", async (req, res, next) => {
-    try {
-        const updateBooking = req.body.booking;
-        const bookingId = req.params.bookingId;
-        const { metadata, error } = await validateUser(
-            req.headers.authorization.substring(7)
-        );
-        if (error) return res.status(404).send("Unable to validate token: ", error);
+  try {
+    const updateBooking = req.body.booking;
+    const bookingId = req.params.bookingId;
+    const { metadata, error } = await validateUser(
+      req.headers.authorization.substring(7)
+    );
+    if (error) return res.status(404).send("Unable to validate token: ", error);
 
-        const customerBooking = await Booking.findOne({
-            bookingId,
-            status: "ACCEPTED",
-        });
-        if (customerBooking.email !== metadata.email)
-            return res.status(404).send("user doesn't match");
+    const customerBooking = await Booking.findOne({
+      bookingId,
+      status: "ACCEPTED",
+    });
+    if (customerBooking.email !== metadata.email)
+      return res.status(404).send("user doesn't match");
 
-        const {
-            result: { booking: newBooking },
-        } = await bookingsApi.updateBooking(bookingId, {
-            booking: updateBooking,
-        });
+    const {
+      result: { booking: newBooking },
+    } = await bookingsApi.updateBooking(bookingId, {
+      booking: updateBooking,
+    });
 
-        res.send(JSONBig.parse(JSONBig.stringify({ newBooking })));
-    } catch (error) {
-        console.error(error);
-        next(error);
-    }
+    res.send(JSONBig.parse(JSONBig.stringify({ newBooking })));
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
 });
-
 
 /**
  * DELETE /customer/booking/:bookingId

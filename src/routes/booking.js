@@ -193,7 +193,7 @@ router.get("/:bookingId/reschedule", async (req, res, next) => {
             {
               serviceVariationId,
               teamMemberIdFilter: {
-                any: [teamMemberId],
+                any: teamMemberId,
               },
             },
           ],
