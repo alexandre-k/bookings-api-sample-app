@@ -22,6 +22,7 @@ const {
   customersApi,
 } = require("../util/square-client");
 const { v4: uuidv4 } = require("uuid");
+const { validateUser } = require("../util/user");
 
 require("dotenv").config();
 const locationId = process.env["SQUARE_LOCATION_ID"];
@@ -51,6 +52,11 @@ router.post("/create", async (req, res, next) => {
   const givenName = req.body.booking.givenName;
 
   try {
+    const { metadata, error } = await validateUser(
+      req.headers.authorization.substring(7)
+    );
+    if (error) throw error;
+
     //   // Retrieve catalog object by the variation ID
     //   const {
     //     result: { object: catalogItemVariation },

@@ -25,22 +25,10 @@ const {
   teamApi,
 } = require("../util/square-client");
 const { v4: uuidv4 } = require("uuid");
+const { validateUser } = require("../util/user");
 
 require("dotenv").config();
 const locationId = process.env["SQUARE_LOCATION_ID"];
-const magicLinkPrivateKey = process.env["MAGIC_LINK_SECRET_KEY"];
-const mAdmin = new Magic(magicLinkPrivateKey);
-
-const validateUser = async (DIDToken) => {
-  try {
-    const metadata = await mAdmin.users.getMetadataByToken(DIDToken);
-    mAdmin.token.validate(DIDToken);
-    return { metadata, error: null };
-  } catch (error) {
-    console.error(error);
-    return { metadata: null, error };
-  }
-};
 
 /**
  * Convert a duration in milliseconds to minutes
@@ -123,7 +111,9 @@ router.get("/booking", async (req, res, next) => {
     const { metadata, error } = await validateUser(
       req.headers.authorization.substring(7)
     );
-    if (error) return res.status(404).send("Unable to validate token: ", error);
+    if (error) {
+      throw error;
+    }
 
     const email = req.query["email"];
     if (!email) {
@@ -136,15 +126,11 @@ router.get("/booking", async (req, res, next) => {
       status: "ACCEPTED",
     });
     if (customerBookings === null) return res.status(200).json([]);
-    const retrieveBookings = customerBookings.map((booking) =>
-      bookingsApi.retrieveBooking(booking.bookingId)
-    );
 
     // Wait until all API calls have completed.
-    const bookings = await Promise.all(retrieveBookings);
-    const parsedBookings = bookings.map((res) => {
-      return res.result.booking;
-    });
+    const parsedBookings = customerBookings
+      .filter((booking) => booking.rawBooking !== undefined)
+      .map((booking) => JSONBig.parse(booking.rawBooking));
 
     res.send(JSONBig.parse(JSONBig.stringify(parsedBookings)));
   } catch (error) {
@@ -166,7 +152,11 @@ router.get("/booking/:bookingId", async (req, res, next) => {
     const { metadata, error } = await validateUser(
       req.headers.authorization.substring(7)
     );
-    if (error) return res.status(401).send("Unable to validate token: ", error);
+    // if (error) return res.status(401).send("Unable to validate token: ", error);
+    if (error) {
+      throw error;
+    }
+
     const bookingId = req.params["bookingId"];
     const customerBooking = await Booking.findOne({
       bookingId,
@@ -250,6 +240,11 @@ router.post("/booking", async (req, res, next) => {
     const familyName = req.body.booking.familyName;
     const givenName = req.body.booking.givenName;
 
+    const { metadata, error } = await validateUser(
+      req.headers.authorization.substring(7)
+    );
+    if (error) throw error;
+
     //   // Retrieve catalog object by the variation ID
     //   const {
     //     result: { object: catalogItemVariation },
@@ -279,42 +274,12 @@ router.post("/booking", async (req, res, next) => {
       customerId: customerId,
       email: emailAddress,
       orderId: null,
+      rawBooking: JSONBig.stringify(booking),
       status: booking.status,
     });
     await customerBooking.save();
 
     return res.send(JSONBig.parse(JSONBig.stringify({ booking })));
-  } catch (error) {
-    console.error(error);
-    next(error);
-  }
-});
-
-/**
- * POST /booking/create
- *
- * Create a new booking, booking details and customer information is submitted
- * by form data. Create a new customer if necessary, otherwise use an existing
- * customer that matches the `firstName`, `lastName` and `emailAddress`
- * to create the booking.
- *
- * accepted query params are:
- * `serviceId` - the ID of the service
- * `staffId` - the ID of the staff
- * `startAt` - starting time of the booking
- * `serviceVariationVersion` - the version of the service initially selected
- */
-router.post("/create", async (req, res, next) => {
-  try {
-    const booking = new Booking({
-      email: req.body.email,
-      customerId: req.body.customerId,
-      orderId: req.body.orderId,
-      bookingId: req.body.bookingId,
-      status: req.body.status,
-    });
-    await booking.save();
-    return res.send(booking);
   } catch (error) {
     console.error(error);
     next(error);
@@ -333,7 +298,8 @@ router.put("/booking/:bookingId", async (req, res, next) => {
     const { metadata, error } = await validateUser(
       req.headers.authorization.substring(7)
     );
-    if (error) return res.status(404).send("Unable to validate token: ", error);
+    // if (error) return res.status(404).send("Unable to validate token: ", error);
+    if (error) throw error;
 
     const customerBooking = await Booking.findOne({
       bookingId,
