@@ -108,9 +108,8 @@ app.use(cookieParser());
 app.use("/api", routes);
 
 // error handlers
-// For simplicity, we print all error information
 app.use(function (err, req, res, next) {
-  next(err);
+  res.status(500).send(err);
 });
 
 /**
