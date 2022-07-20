@@ -129,8 +129,11 @@ router.get("/booking", async (req, res, next) => {
 
     // Wait until all API calls have completed.
     const parsedBookings = customerBookings
-      .filter((booking) => booking.rawBooking !== undefined)
-      .map((booking) => JSONBig.parse(booking.rawBooking));
+      .filter((booking) => booking.rawBooking !== undefined && booking.serviceNames !== undefined)
+      .map((booking) => ({
+        ...JSONBig.parse(booking.rawBooking),
+        serviceNames: booking.serviceNames,
+      }));
 
     res.send(JSONBig.parse(JSONBig.stringify(parsedBookings)));
   } catch (error) {
@@ -239,6 +242,7 @@ router.post("/booking", async (req, res, next) => {
     const customerId = req.body.booking.customerId;
     const familyName = req.body.booking.familyName;
     const givenName = req.body.booking.givenName;
+    const serviceNames = req.body.booking.serviceNames;
 
     const { metadata, error } = await validateUser(
       req.headers.authorization.substring(7)
@@ -260,7 +264,6 @@ router.post("/booking", async (req, res, next) => {
       booking: {
         appointmentSegments,
         customerId: await getCustomerID(givenName, familyName, emailAddress),
-
         // locationType: LocationType.BUSINESS_LOCATION,
         // sellerNote,
         customerNote,
@@ -275,6 +278,7 @@ router.post("/booking", async (req, res, next) => {
       email: emailAddress,
       orderId: null,
       rawBooking: JSONBig.stringify(booking),
+      serviceNames,
       status: booking.status,
     });
     await customerBooking.save();
@@ -300,11 +304,11 @@ router.put("/booking/:bookingId", async (req, res, next) => {
     );
     // if (error) return res.status(404).send("Unable to validate token: ", error);
     if (error) throw error;
-
-    const customerBooking = await Booking.findOne({
+    const dbQuery = {
       bookingId,
       status: "ACCEPTED",
-    });
+    };
+    const customerBooking = await Booking.findOne(dbQuery);
     if (customerBooking.email !== metadata.email)
       return res.status(404).send("user doesn't match");
 
@@ -313,6 +317,9 @@ router.put("/booking/:bookingId", async (req, res, next) => {
     } = await bookingsApi.updateBooking(bookingId, {
       booking: updateBooking,
     });
+
+    customerBooking.rawBooking = JSONBig.stringify(newBooking);
+    await Booking.findOneAndUpdate(dbQuery, customerBooking);
 
     res.send(JSONBig.parse(JSONBig.stringify({ newBooking })));
   } catch (error) {

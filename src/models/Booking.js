@@ -6,7 +6,8 @@ const schema = mongoose.Schema({
   orderId: String,
   bookingId: String,
   status: String,
-  rawBooking: String
+  rawBooking: String,
+  serviceNames: [String]
 });
 
 module.exports = mongoose.model("Booking", schema);
