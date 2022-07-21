@@ -129,10 +129,7 @@ router.get("/booking", async (req, res, next) => {
 
     // Wait until all API calls have completed.
     const parsedBookings = customerBookings
-      .filter(
-        (booking) =>
-          !!booking.rawBooking && !!booking.serviceNames
-      )
+      .filter((booking) => !!booking.rawBooking && !!booking.serviceNames)
       .map((booking) => ({
         ...JSONBig.parse(booking.rawBooking),
         serviceNames: booking.serviceNames,
@@ -300,6 +297,7 @@ router.post("/booking", async (req, res, next) => {
  */
 router.put("/booking/:bookingId", async (req, res, next) => {
   try {
+    const serviceNames = req.body.serviceNames;
     const updateBooking = req.body.booking;
     const bookingId = req.params.bookingId;
     const { metadata, error } = await validateUser(
@@ -322,7 +320,15 @@ router.put("/booking/:bookingId", async (req, res, next) => {
     });
 
     customerBooking.rawBooking = JSONBig.stringify(newBooking);
-    await Booking.updateOne({ id: customerBooking.id }, customerBooking);
+    await Booking.updateOne(
+      { _id: customerBooking._id },
+      {
+        $set: {
+          rawBooking: JSONBig.stringify(newBooking),
+          serviceNames: serviceNames,
+        },
+      }
+    );
 
     res.send(JSONBig.parse(JSONBig.stringify({ newBooking })));
   } catch (error) {
