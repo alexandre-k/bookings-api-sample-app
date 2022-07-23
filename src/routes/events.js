@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const express = require("express");
 const router = express.Router();
 const JSONBig = require("json-bigint");
+const Booking = require("../models/Booking");
 require("dotenv").config();
 
 const locationId = process.env["SQUARE_LOCATION_ID"];
@@ -40,7 +41,18 @@ router.post("", async (req, res, next) => {
     );
     if (!isSignOk) return res.status(404).send("Signature doesn't match");
     const ws = req.app.get("ws");
-    ws.emit(req.body.type, req.body);
+    const data = req.body;
+    switch (data.type) {
+      case "payment.updated": {
+        const filter = { paymentLinkId: data.id };
+        const update = { paid: true };
+        await Booking.findOneAndUpdate(filter, update, {
+          returnOriginal: false,
+        });
+      }
+    }
+
+    ws.emit(data.type, data);
     return res.send({ ok: true });
   } catch (error) {
     console.error(error);

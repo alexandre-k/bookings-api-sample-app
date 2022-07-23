@@ -22,6 +22,7 @@ const {
   catalogApi,
   checkoutApi,
   customersApi,
+  ordersApi,
   teamApi,
 } = require("../util/square-client");
 const { v4: uuidv4 } = require("uuid");
@@ -183,15 +184,20 @@ router.get("/booking/:bookingId", async (req, res, next) => {
     const teamMemberId = teamMemberIds.length > 0 ? teamMemberIds[0] : null;
     const batchRetrieveCatalogObjectsPromise =
       catalogApi.batchRetrieveCatalogObjects({
-        objectIds,
         includeRelatedObjects: true,
+        objectIds,
       });
 
     // Send request to list staff booking profiles for the current location.
     const retrieveTeamMemberPromise = teamApi.retrieveTeamMember(teamMemberId);
 
-    const retrievePaymentLinkPromise =
-      checkoutApi.retrievePaymentLink("SNWAT6DTDRDSBR2P");
+    const retrievePaymentLinkPromise = checkoutApi.retrievePaymentLink(
+      customerBooking.paymentLinkId
+    );
+
+    const retrieveOrderPromise = await ordersApi.retrieveOrder(
+      customerBooking.orderId
+    );
 
     // Wait until all API calls have completed.
     const [
@@ -204,20 +210,24 @@ router.get("/booking/:bookingId", async (req, res, next) => {
       {
         result: { paymentLink },
       },
+      {
+        result: { order },
+      },
     ] = await Promise.all([
       batchRetrieveCatalogObjectsPromise,
       retrieveTeamMemberPromise,
       retrievePaymentLinkPromise,
+      retrieveOrderPromise,
     ]);
-
     res.send(
       JSONBig.parse(
         JSONBig.stringify({
           booking,
-          teamMember,
           objects,
-          relatedObjects,
+          order,
           paymentLink,
+          relatedObjects,
+          teamMember,
         })
       )
     );
@@ -226,6 +236,80 @@ router.get("/booking/:bookingId", async (req, res, next) => {
     next(error);
   }
 });
+
+const createOrder = async (services, locationId, customerId, bookingId) => {
+  const lineItems = services.map((s) => ({
+    basePriceMoney: {
+      amount: s.amount,
+      currency: s.currency,
+    },
+    catalogObjectId: s.id,
+    customerId,
+    quantity: "1",
+  }));
+
+  const body = {
+    idempotencyKey: uuidv4(),
+    order: {
+      lineItems,
+      locationId,
+      referenceId: bookingId,
+    },
+  };
+
+  try {
+    const {
+      result: { order },
+      ...httpResponse
+    } = await ordersApi.createOrder(body);
+    return order;
+  } catch (error) {
+    if (error) {
+      throw Error(error);
+    }
+  }
+};
+
+const createPaymentLink = async (services, locationId) => {
+  const body = {
+    idempotencyKey: uuidv4(),
+    description: "Hair cut",
+    checkoutOptions: {
+      redirectUrl: "http://presearch.org",
+    },
+    quickPay: {
+      locationId,
+      name: services
+        .map((s, idx) => {
+          if (idx < services.length - 1) {
+            return s.name + ", ";
+          } else {
+            return s.name;
+          }
+        })
+        .join(""),
+      priceMoney: {
+        amount: services.reduce((acc, service) => {
+          return acc + service.amount;
+        }, 0),
+        currency: services[0].currency,
+      },
+    },
+  };
+
+  try {
+    const {
+      result: { paymentLink },
+      ...httpResponse
+    } = await checkoutApi.createPaymentLink(body);
+    return paymentLink;
+  } catch (error) {
+    console.log(error);
+    if (error) {
+      throw Error(error);
+    }
+  }
+};
 
 /**
  * POST /customer/booking
@@ -239,31 +323,23 @@ router.post("/booking", async (req, res, next) => {
     const sellerNote = req.body.booking.sellerNote;
     const customerNote = req.body.booking.customerNote;
     const emailAddress = req.body.booking.emailAddress;
-    const customerId = req.body.booking.customerId;
     const familyName = req.body.booking.familyName;
     const givenName = req.body.booking.givenName;
-    const serviceNames = req.body.booking.serviceNames;
+    const services = req.body.booking.services;
 
     const { metadata, error } = await validateUser(
       req.headers.authorization.substring(7)
     );
     if (error) throw error;
 
-    //   // Retrieve catalog object by the variation ID
-    //   const {
-    //     result: { object: catalogItemVariation },
-    //   } = await catalogApi.retrieveCatalogObject(serviceId);
-    //   const durationMinutes = convertMsToMins(
-    //     catalogItemVariation.itemVariationData.serviceDuration
-    //   );
-
     // Create booking
+    const customerId = await getCustomerID(givenName, familyName, emailAddress);
     const {
       result: { booking },
     } = await bookingsApi.createBooking({
       booking: {
         appointmentSegments,
-        customerId: await getCustomerID(givenName, familyName, emailAddress),
+        customerId,
         // locationType: LocationType.BUSINESS_LOCATION,
         // sellerNote,
         customerNote,
@@ -272,17 +348,20 @@ router.post("/booking", async (req, res, next) => {
       },
       idempotencyKey: uuidv4(),
     });
+
+    const paymentLink = await createPaymentLink(services, locationId);
+
     const customerBooking = new Booking({
       bookingId: booking.id,
       customerId: customerId,
       email: emailAddress,
-      orderId: null,
+      paid: false,
+      paymentLinkId: paymentLink.id,
       rawBooking: JSONBig.stringify(booking),
-      serviceNames,
+      serviceNames: services.map((s) => s.name),
       status: booking.status,
     });
     await customerBooking.save();
-
     return res.send(JSONBig.parse(JSONBig.stringify({ booking })));
   } catch (error) {
     console.error(error);
@@ -330,7 +409,7 @@ router.put("/booking/:bookingId", async (req, res, next) => {
       }
     );
 
-    res.send(JSONBig.parse(JSONBig.stringify({ newBooking })));
+    res.send(JSONBig.parse(JSONBig.stringify(newBooking)));
   } catch (error) {
     console.error(error);
     next(error);
