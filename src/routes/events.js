@@ -43,7 +43,7 @@ router.post("", async (req, res, next) => {
     const ws = req.app.get("ws");
     const data = req.body;
     switch (data.type) {
-      case "payment.updated": {
+      case "order.updated": {
         const filter = { paymentLinkId: data.id };
         const update = { paid: true };
         await Booking.findOneAndUpdate(filter, update, {
