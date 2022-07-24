@@ -2,7 +2,10 @@ const crypto = require("crypto");
 const express = require("express");
 const router = express.Router();
 const JSONBig = require("json-bigint");
+const { v4: uuidv4 } = require("uuid");
 const Booking = require("../models/Booking");
+const { paymentsApi } = require("../util/square-client");
+
 require("dotenv").config();
 
 const locationId = process.env["SQUARE_LOCATION_ID"];
@@ -43,12 +46,20 @@ router.post("", async (req, res, next) => {
     const ws = req.app.get("ws");
     const data = req.body;
     switch (data.type) {
-      case "order.updated": {
-        const filter = { paymentLinkId: data.id };
-        const update = { paid: true };
-        await Booking.findOneAndUpdate(filter, update, {
-          returnOriginal: false,
-        });
+      case "payment.updated": {
+        // const filter = { paymentLinkId: data.id };
+        const filter = { paymentLinkId: "ZDZUKY5BXYGEPW3P" };
+        const customerBooking = await Booking.findOne(filter);
+        const { result: payment, ...httpResponse } =
+          await paymentsApi.getPayment(customerBooking.paymentLinkId);
+        await Booking.updateOne(
+          { _id: customerBooking._id },
+          {
+            $set: {
+              paymentStatus: payment.status,
+            },
+          }
+        );
       }
     }
 
