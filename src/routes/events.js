@@ -4,7 +4,7 @@ const router = express.Router();
 const JSONBig = require("json-bigint");
 const { v4: uuidv4 } = require("uuid");
 const Booking = require("../models/Booking");
-const { paymentsApi } = require("../util/square-client");
+const { ordersApi } = require("../util/square-client");
 
 require("dotenv").config();
 
@@ -47,16 +47,26 @@ router.post("", async (req, res, next) => {
     const data = req.body;
     switch (data.type) {
       case "payment.updated": {
-        // const filter = { paymentLinkId: data.id };
-        const filter = { paymentLinkId: "ZDZUKY5BXYGEPW3P" };
+        const filter = { paymentLinkId: data.id };
         const customerBooking = await Booking.findOne(filter);
-        const { result: payment, ...httpResponse } =
-          await paymentsApi.getPayment(customerBooking.paymentLinkId);
+        const {
+          result: { order },
+          ...httpResponse
+        } = await ordersApi.retrieveOrder(customerBooking.orderId);
+        const completedFulfillments = order.fulfillments.map((f) => ({
+          ...f,
+          state: "COMPLETED",
+        }));
+        order["fulfillments"] = completedFulfillments;
+        order.state = "COMPLETED";
+        const response = await ordersApi.updateOrder(customerBooking.orderId, {
+          order,
+        });
         await Booking.updateOne(
           { _id: customerBooking._id },
           {
             $set: {
-              paymentStatus: payment.status,
+              orderStatus: order.status,
             },
           }
         );

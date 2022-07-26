@@ -357,7 +357,7 @@ router.post("/booking", async (req, res, next) => {
       email: emailAddress,
       orderId: paymentLink.orderId,
       paymentLinkId: paymentLink.id,
-      paymentStatus: "PENDING",
+      orderStatus: "OPEN",
       rawBooking: JSONBig.stringify(booking),
       serviceNames: services.map((s) => s.name),
       status: booking.status,

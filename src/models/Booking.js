@@ -4,7 +4,7 @@ const schema = mongoose.Schema({
   email: String,
   customerId: String,
   orderId: String,
-  paymentStatus: String,
+  orderStatus: String,
   paymentLinkId: String,
   bookingId: String,
   status: String,
